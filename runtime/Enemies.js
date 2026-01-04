@@ -139,15 +139,32 @@ export const Enemies = {
     const zone = explorationMode ? (State.modules?.World?.currentZone || null) : null;
     const margin = 200;
 
+    // Exploration AI activation: decouple from screen-space. Enemies "wake" near player.
+    const p = State.player;
+    const activeRadius = 900;      // wake distance
+    const attackRadius = 750;      // allow shooting
+    const activeRadiusSq = activeRadius * activeRadius;
+    const attackRadiusSq = attackRadius * attackRadius;
+
     for (const e of State.enemies) {
       if (e.dead) continue;
-      
+
+      // In exploration mode, sleep enemies far away (no movement, no shooting)
+      if (explorationMode && p) {
+        const dxA = e.x - p.x;
+        const dyA = e.y - p.y;
+        const distSqA = dxA * dxA + dyA * dyA;
+        if (distSqA > activeRadiusSq) {
+          continue;
+        }
+      }
+
       e.patternTime += dt;
       this.applyPattern(e, dt, canvas);
-      
+
       e.x += e.vx * dt;
       e.y += e.vy * dt;
-      
+
       // Despawn / out-of-bounds
       if (explorationMode && zone) {
         if (e.x < -margin || e.y < -margin || e.x > zone.width + margin || e.y > zone.height + margin) {
@@ -160,16 +177,33 @@ export const Enemies = {
           continue;
         }
       }
-      
+
       // Shooting
       e.shootTimer -= dt;
-      if (e.shootTimer <= 0 && e.y > 30 && e.y < canvas.height * 0.6) {
-        e.shootTimer = e.shootInterval + Math.random();
-        this.shoot(e);
+      if (e.shootTimer <= 0) {
+        if (explorationMode && p) {
+          const dx = p.x - e.x, dy = p.y - e.y;
+          const distSq = dx * dx + dy * dy;
+          if (distSq <= attackRadiusSq) {
+            e.shootTimer = e.shootInterval + Math.random();
+            this.shoot(e);
+          } else {
+            // wait a bit, do not spam checks every frame
+            e.shootTimer = 0.15 + Math.random() * 0.15;
+          }
+        } else {
+          // Legacy arcade gating
+          if (e.y > 30 && e.y < canvas.height * 0.6) {
+            e.shootTimer = e.shootInterval + Math.random();
+            this.shoot(e);
+          } else {
+            e.shootTimer = 0.2 + Math.random() * 0.2;
+          }
+        }
       }
     }
-    
-    State.enemies = State.enemies.filter(e => !e.dead);
+
+State.enemies = State.enemies.filter(e => !e.dead);
   },
   
   // Apply movement pattern
