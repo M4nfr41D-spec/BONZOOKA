@@ -475,8 +475,8 @@ export const World = {
       const fgOffsetY = camY * parallax.foreground.scrollSpeed;
       
       for (const wisp of parallax.foreground.objects) {
-        const x = wisp.x - fgOffsetX;
-        const y = wisp.y - fgOffsetY;
+        const x = ((wisp.x - fgOffsetX) % screenW + screenW) % screenW;
+        const y = ((wisp.y - fgOffsetY) % screenH + screenH) % screenH;
         
         ctx.globalAlpha = wisp.alpha;
         ctx.fillStyle = wisp.color;
